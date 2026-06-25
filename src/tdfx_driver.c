@@ -1510,7 +1510,7 @@ TDFXRestore(ScrnInfoPtr pScrn) {
 
 static int
 CalcPLL(int freq, int *f_out, int isBanshee) {
-  int m, n, k, best_m, best_n, best_k, f_cur, best_error;
+  int n, m, k, best_n, best_m, best_k, f_cur, best_error;
   int minm, maxm;
 
   TDFXTRACE("CalcPLL start\n");
@@ -1519,36 +1519,40 @@ CalcPLL(int freq, int *f_out, int isBanshee) {
   if (isBanshee) {
     minm=24;
     maxm=24;
-  } else {
-    minm=1;
-    maxm=57; /* This used to be 64, alas it seems the last 8 (funny that ?)
-              * values cause jittering at lower resolutions. I've not done
-              * any calculations to what the adjustment affects clock ranges,
-              * but I can still run at 1600x1200@75Hz */
-  }
-  for (n=1; n<256; n++) {
-    f_cur=REFFREQ*(n+2);
-    if (f_cur<freq) {
-      f_cur=f_cur/3;
-      if (freq-f_cur<best_error) {
-	best_error=freq-f_cur;
-	best_n=n;
-	best_m=1;
-	best_k=0;
-	continue;
-      }
-    }
-    for (m=minm; m<maxm; m++) {
-      for (k=0; k<4; k++) {
-	f_cur=REFFREQ*(n+2)/(m+2)/(1<<k);
-	if (abs(f_cur-freq)<best_error) {
-	  best_error=abs(f_cur-freq);
-	  best_n=n;
-	  best_m=m;
-	  best_k=k;
+    for (n=1; n<256; n++) {
+      for (m=minm; m<=maxm; m++) {
+	for (k=0; k<4; k++) {
+	  f_cur=REFFREQ*(n+2)/(m+2)/(1<<k);
+	  if (abs(f_cur-freq)<best_error) {
+	    best_error=abs(f_cur-freq);
+	    best_n=n;
+	    best_m=m;
+	    best_k=k;
+	  }
 	}
       }
     }
+  } else {
+    /*
+     * VSA-100 video (dot) clock, tuned for LOW JITTER (clean analog output):
+     *   - m = 1  -> phase-comparison freq REF/3 = 4.77 MHz (highest -> lowest
+     *     jitter; large m like 24 runs it down to 0.55 MHz and jitters).
+     *   - choose post-divider k so the VCO (= freq<<k) stays high, just under
+     *     VCO_MAX, instead of running near its noisy minimum.
+     * This reproduces the clean 1080p case (m=1, VCO 297) for every mode.
+     */
+    int VCO_MAX = 440000;   /* kHz; graphics PLL table proves ~439 is stable */
+    if (freq < 30000)  freq = 30000;
+    if (freq > 220000) freq = 220000;
+    k = 0;
+    while (k < 3 && (freq * (1 << (k + 1))) <= VCO_MAX)
+      k++;
+    best_m = 1;                                              /* m+2 = 3 */
+    best_k = k;
+    /* output = REF*(n+2)/3/2^k = freq  ->  n+2 = round(3*freq*2^k / REF) */
+    best_n = (int)(3.0 * (double)freq * (double)(1 << k) / REFFREQ + 0.5) - 2;
+    if (best_n < 0)   best_n = 0;
+    if (best_n > 255) best_n = 255;
   }
   n=best_n;
   m=best_m;

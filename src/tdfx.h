@@ -332,7 +332,7 @@ typedef struct {
 #define TDFX_BACK 1
 #define TDFX_DEPTH 2
 
-#define TDFX2XCUTOFF 135000
+#define TDFX2XCUTOFF 220000
 
 extern Bool TDFXAccelInit(ScreenPtr pScreen);
 extern Bool TDFXCursorInit(ScreenPtr pScreen);
