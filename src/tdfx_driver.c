@@ -727,9 +727,23 @@ static xf86MonPtr doTDFXDDC(ScrnInfoPtr pScrn)
   CARD32 reg;
 
   reg = pTDFX->readLong(pTDFX, VIDSERIALPARALLELPORT);
-  pTDFX->writeLong(pTDFX, VIDSERIALPARALLELPORT, reg | VSP_ENABLE_IIC0);
 
+  /* The DDC bus can sit behind an on-board mux selected by GPIO_1
+   * (vidSerialParallelPort bit 29) -- e.g. an analog VGA monitor on one mux
+   * position and a digital-output / on-board EDID on the other.  The stock
+   * driver only ever drove the bus in GPIO_1's reset state, so it could never
+   * reach a muxed digital EDID.  Probe with GPIO_1 high, then low, and keep
+   * whichever mux position actually returns an EDID (polarity-agnostic, and a
+   * no-op on cards without the mux, which answer on the first try). */
+  pTDFX->writeLong(pTDFX, VIDSERIALPARALLELPORT,
+                   reg | VSP_ENABLE_IIC0 | VSP_GPIO1_OUT);
   pMon = xf86DoEDID_DDC2(pScrn, pTDFX->pI2CBus);
+
+  if (pMon == NULL) {
+    pTDFX->writeLong(pTDFX, VIDSERIALPARALLELPORT,
+                     (reg | VSP_ENABLE_IIC0) & ~VSP_GPIO1_OUT);
+    pMon = xf86DoEDID_DDC2(pScrn, pTDFX->pI2CBus);
+  }
 
   if (pMon == NULL)
     xf86Msg(X_WARNING, "No DDC2 capable monitor found\n");
