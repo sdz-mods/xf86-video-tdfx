@@ -304,6 +304,7 @@ typedef struct _TDFXRec {
 
   I2CBusPtr pI2CBus;
 
+  void *exa;			/* ExaDriverPtr when EXA acceleration is on */
 } TDFXRec;
 
 typedef struct {
@@ -335,6 +336,8 @@ typedef struct {
 #define TDFX2XCUTOFF 220000
 
 extern Bool TDFXAccelInit(ScreenPtr pScreen);
+extern Bool TDFXExaInit(ScreenPtr pScreen);
+extern void TDFXExaFini(ScreenPtr pScreen);
 extern Bool TDFXCursorInit(ScreenPtr pScreen);
 extern void TDFXSync(ScrnInfoPtr pScrn);
 extern Bool TDFXDRIScreenInit(ScreenPtr pScreen);

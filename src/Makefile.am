@@ -31,6 +31,7 @@ tdfx_drv_ladir = @moduledir@/drivers
 tdfx_drv_la_SOURCES = \
          compat-api.h \
          tdfx_accel.c \
+         tdfx_exa.c \
          tdfxdefs.h \
          tdfx_dga.c \
          tdfx_driver.c \

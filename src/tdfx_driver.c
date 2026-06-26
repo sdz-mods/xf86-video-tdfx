@@ -1082,8 +1082,11 @@ TDFXPreInit(ScrnInfoPtr pScrn, int flags)
 
   pTDFX->NoAccel = xf86ReturnOptValBool(pTDFX->Options, OPTION_NOACCEL, FALSE);
   if (!pTDFX->NoAccel) {
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No acceleration available\n");
-      pTDFX->NoAccel = TRUE;
+      if (!xf86LoadSubModule(pScrn, "exa")) {
+          xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                     "Failed to load EXA, acceleration disabled\n");
+          pTDFX->NoAccel = TRUE;
+      }
   }
 
   if (!xf86GetOptValBool(pTDFX->Options, OPTION_SHOWCACHE, &(pTDFX->ShowCache))) {
@@ -2158,9 +2161,10 @@ TDFXScreenInit(ScreenPtr pScreen, int argc, char **argv) {
   xf86InitFBManager(pScreen, &MemBox);
 
   if (!pTDFX->NoAccel) {
-    if (!TDFXAccelInit(pScreen)) {
+    if (!TDFXExaInit(pScreen)) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		 "Hardware acceleration initialization failed\n");
+      pTDFX->NoAccel = TRUE;
     }
   }
 
@@ -2305,6 +2309,9 @@ TDFXCloseScreen(ScreenPtr pScreen)
   pScrn = xf86ScreenToScrn(pScreen);
   hwp = VGAHWPTR(pScrn);
   pTDFX = TDFXPTR(pScrn);
+
+  if (pTDFX->exa)
+    TDFXExaFini(pScreen);
 
 #ifdef TDFXDRI
     if (pTDFX->directRenderingEnabled) {
